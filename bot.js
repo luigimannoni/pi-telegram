@@ -16,11 +16,11 @@ bot.use(telegrafCommandParts());
 
 // DB and command list
 const users = db.addCollection('users');
-const commands = [
-  '/cpu',
-  '/internet',
-];
+const commands = ['/internet'];
 
+function bytesToMegaBytes(bytes) {
+  return (bytes / 1024 / 1024 * 8).toFixed(2);
+}
 
 bot.start((ctx) => {
   if (users) {
@@ -54,45 +54,40 @@ bot.command('help', (ctx) => {
   commands.join('\n');
 });
 
-bot.command('cpu', (ctx) => {
-  ctx.reply('CPU Data...');
-  function cb(data) {
-    console.log(data);
-    ctx.reply(data);
+bot.command('internet', async (ctx) => {
+  console.log('Received /internet command from', ctx.from.username);
+  ctx.reply('Internet Data...');
+  
+  let message = [];
+
+  try {
+    const data = await speedTest({ acceptGdpr: true, acceptLicense: true });
+    const {
+      ping,
+      download,
+      upload,
+      interface,
+      packetLoss,
+      timestamp,
+    } = data;
+
+    message = [
+      `Bandwidth at ${timestamp}`,
+      `Download: ${bytesToMegaBytes(download.bandwidth)}`,
+      `Upload: ${bytesToMegaBytes(upload.bandwidth)}`,
+      'Ping',
+      `Latency: ${ping.latency}ms`,
+      `Jitter: ${ping.jitter}ms`,
+      `Packet Loss: ${packetLoss}%`,
+      `IP: ${interface.externalIp}`,
+    ];
+  } catch (err) {
+    ({ message } = err);
+  } finally {
+    console.log(message);
+    ctx.reply(message.join('\n'));
   }
 
-  si.system(cb);
-  si.bios(cb);
-  si.baseboard(cb);
-  si.chassis(cb);
-  si.cpu(cb);
-  si.cpuTemperature(cb);
-  si.cpuCurrentspeed(cb);
-  si.mem(cb);
-  si.osInfo(cb);
-  si.fullLoad(cb);
-  // si.processes(cb);
-  si.processLoad(cb);
-  // si.services(cb);
-  // si.networkStats(cb);
-  // si.networkConnections(cb);
-  si.networkInterfaces(cb);
-  si.dockerInfo(cb);
-  si.dockerContainers(cb);
-  // si.networkInterfaces(cb);
-  // si.networkInterfaces(cb);
-
-});
-
-bot.command('internet', (ctx) => {
-  ctx.reply('Internet Data...');
-
-  const test = speedTest({ maxTime: 5000 });
- 
-  test.on('data', data => {
-    ctx.reply(data);
-    console.log(data);
-  });       
 });
 
 
