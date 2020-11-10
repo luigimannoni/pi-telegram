@@ -3,6 +3,6 @@ services:
   node:
     build: .
     volumes: 
-      - .:/app
+      - ./src:/app
       - /app/node_modules
     restart: unless-stopped

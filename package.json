@@ -4,9 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon bot.js",
+    "dev": "nodemon ./src/bot.js",
     "docker": "docker-compose up -d",
-    "start": "node bot.js"
+    "start": "node ./src/bot.js"
   },
   "author": "",
   "license": "ISC",
@@ -15,7 +15,7 @@
     "lokijs": "^1.5.8",
     "speedtest-net": "^2.1.1",
     "systeminformation": "^4.22.1",
-    "telegraf": "^3.36.0",
+    "telegraf": "^3.38.0",
     "telegraf-command-parts": "^1.0.3"
   },
   "devDependencies": {
