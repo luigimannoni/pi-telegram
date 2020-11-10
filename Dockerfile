@@ -14,4 +14,5 @@ RUN npm install --quiet
 RUN apk del .gyp
 
 COPY ./src .
+COPY .env .
 CMD [ "node", "bot.js" ]
