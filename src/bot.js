@@ -5,6 +5,9 @@ const Extra = require('telegraf/extra')
 const Markup = require('telegraf/markup')
 const speedTest = require('speedtest-net')
 
+// Custom commands
+const page_hash = require('./commands/page_hash')
+
 function bytesToMegaBytes(bytes) {
   return (bytes / 1024 / 1024 * 8).toFixed(2)
 }
@@ -34,50 +37,91 @@ const monitorPi = async () => {
 
     return message.join('\n')
   } catch (err) {
-    return err
+    return 'Speedtest currently unavailable'
   }
 }
 
 const bot = new Telegraf(process.env.BOT_TOKEN)
-const state = {
-  interval: false
+const state = {}
+
+const generateState = (id) => {
+  state[id] = {
+    interval: false,
+    page: null,
+  }
 }
 
 bot.use(Telegraf.log())
 
-bot.command('report', (ctx) => {
-  const message = `Reporting is currently <b>${state.interval ? 'enabled' : 'disabled'}</b>`
+bot.hears(/hello/i, (ctx) => {
+  const {id, first_name} = ctx.update.message.from
+  state[id] = {
+    interval: false,
+    page: null,
+  }
+
+  const message = [
+    `Hello, ${first_name}, periodic reporting is <b>${state[id].interval ? 'enabled' : 'disabled'}</b>`,
+    'Available commands:',
+    '',
+    '/start [url] - start monitoring URL address',
+    '/stop - stops monitoring',
+    '/report - reports last time checked and next time',
+    '/internet - internet status'
+  ].join('\n')
+
   return ctx.replyWithHTML(message, Extra.markup(
     Markup.keyboard([
-      ['/start 60', '/start 120', '/start 240'], 
-      ['/stop'],
-      ['/manual']
+      ['/start', '/stop'], 
+      ['/report', '/internet'],
     ])
   ))
 })
 
-bot.hears(/\/start (\d+)/, (ctx) => {
-  const timing = ctx.match[1]
 
-  if (timing < 30) {
-    return ctx.reply('Report not started, interval cannot be less than 30 minutes')  
-  } else {
-    state.interval = setInterval(async () => {
-      const message = await monitorPi()
-      return ctx.replyWithHTML(message)
-    }, 1000 * 60 * timing)
-    return ctx.reply(`Reporting started, reporting every ${timing} minutes`)  
+bot.command('report', (ctx) => {
+  const {id} = ctx.update.message.from
+  const message = [
+    `Reporting is currently <b>${state[id].interval ? 'enabled' : 'disabled'}</b>`,
+    ...(state[id].page ? [`URL monitored: ${state[id].page}`] : []),
+  ].join('\n')
+
+  return ctx.replyWithHTML(message)
+})
+
+bot.hears(/\/start (.+)/, async (ctx) => {
+  const {id} = ctx.update.message.from
+  if (!state[id]) {
+    generateState(id)
   }
+  
+  const url = ctx.match[1]
+  state[id].page = url
+
+  // Store initial hash
+  state[id].pageHash = await page_hash(state[id].page)
+
+  // Start interval
+  state[id].interval = setInterval(async () => {
+    const hash = await page_hash(state[id].page)
+    if (hash !== state[id].pageHash) {
+      return ctx.reply(`🚨 Page ${url} has changed! 🚨`)
+    }
+  }, 1000 * 60 * 5)
+  return ctx.reply(`Reporting started, reporting ${url} every 5 minutes`)  
 })
 
 bot.command('stop', (ctx) => {
-  clearInterval(state.interval)
-  state.interval = false
+  const {id} = ctx.update.message.from
+
+  clearInterval(state[id].interval)
+  state[id].interval = false
+  state[id].page = null
   return ctx.reply('Reporting stopped')
 })
 
-bot.command('manual', async (ctx) => {
-  ctx.reply('Starting manual report, wait for info')
+bot.command('internet', async (ctx) => {
+  ctx.reply('Starting internet report, wait for info')
   const message = await monitorPi()
   return ctx.replyWithHTML(message)
 })

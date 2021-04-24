@@ -11,8 +11,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "axios": "^0.21.1",
     "dotenv": "^8.2.0",
     "lokijs": "^1.5.8",
+    "md5": "^2.3.0",
     "speedtest-net": "^2.1.1",
     "systeminformation": "^4.22.1",
     "telegraf": "^3.38.0",
