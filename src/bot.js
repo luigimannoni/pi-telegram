@@ -6,7 +6,7 @@ const Markup = require('telegraf/markup')
 const speedTest = require('speedtest-net')
 
 // Custom commands
-const page_hash = require('./commands/page_hash')
+const pageHash = require('./commands/pageHash')
 
 function bytesToMegaBytes(bytes) {
   return (bytes / 1024 / 1024 * 8).toFixed(2)
@@ -48,6 +48,8 @@ const generateState = (id) => {
   state[id] = {
     interval: false,
     page: null,
+    lastChange: null,
+    pageHash: null,
   }
 }
 
@@ -66,24 +68,25 @@ bot.hears(/\/start|hello/i, (ctx) => {
     '',
     '/track [url] - start monitoring URL address',
     '/stop - stops monitoring',
-    '/report - reports last time checked and next time',
+    '/status - report tracked url and last time the page has changed',
     '/internet - internet status'
   ].join('\n')
 
   return ctx.replyWithHTML(message, Extra.markup(
     Markup.keyboard([
       ['/track', '/stop'], 
-      ['/report', '/internet'],
+      ['/status', '/internet'],
     ])
   ))
 })
 
 
-bot.command('report', (ctx) => {
+bot.command('status', (ctx) => {
   const {id} = ctx.update.message.from
   const message = [
     `Reporting is currently <b>${state[id].interval ? 'enabled' : 'disabled'}</b>`,
     ...(state[id].page ? [`URL monitored: ${state[id].page}`] : []),
+    ...(state[id].lastChange ? [`Last change: ${state[id].lastChange}`] : []),
   ].join('\n')
 
   return ctx.replyWithHTML(message)
@@ -99,25 +102,30 @@ bot.hears(/\/track (.+)/, async (ctx) => {
   state[id].page = url
 
   // Store initial hash
-  state[id].pageHash = await page_hash(state[id].page)
+  state[id].pageHash = await pageHash(state[id].page)
+  state[id].lastChange = new Date().toGMTString()
 
   // Start interval
   state[id].interval = setInterval(async () => {
-    const hash = await page_hash(state[id].page)
+    const hash = await pageHash(state[id].page)
     if (hash !== state[id].pageHash) {
+      console.log(`Page changed for user ${id}, storing new hash`)
+      state[id].pageHash = hash
+      state[id].lastChange = new Date().toGMTString()
+      
       return ctx.reply(`🚨 Page ${url} has changed! 🚨`)
     }
   }, 1000 * 60)
-  return ctx.reply(`Reporting started, reporting ${url} every 5 minutes`)  
+  return ctx.reply(`Tracking started, reporting ${url} changes every 60 seconds`)  
 })
 
 bot.command('stop', (ctx) => {
   const {id} = ctx.update.message.from
 
   clearInterval(state[id].interval)
-  state[id].interval = false
-  state[id].page = null
-  return ctx.reply('Reporting stopped')
+  generateState(id)
+
+  return ctx.reply('Tracking stopped')
 })
 
 bot.command('internet', async (ctx) => {
