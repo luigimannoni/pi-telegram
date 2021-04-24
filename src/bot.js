@@ -53,7 +53,7 @@ const generateState = (id) => {
 
 bot.use(Telegraf.log())
 
-bot.hears(/hello/i, (ctx) => {
+bot.hears(/\/start|hello/i, (ctx) => {
   const {id, first_name} = ctx.update.message.from
   state[id] = {
     interval: false,
@@ -64,7 +64,7 @@ bot.hears(/hello/i, (ctx) => {
     `Hello, ${first_name}, periodic reporting is <b>${state[id].interval ? 'enabled' : 'disabled'}</b>`,
     'Available commands:',
     '',
-    '/start [url] - start monitoring URL address',
+    '/track [url] - start monitoring URL address',
     '/stop - stops monitoring',
     '/report - reports last time checked and next time',
     '/internet - internet status'
@@ -72,7 +72,7 @@ bot.hears(/hello/i, (ctx) => {
 
   return ctx.replyWithHTML(message, Extra.markup(
     Markup.keyboard([
-      ['/start', '/stop'], 
+      ['/track', '/stop'], 
       ['/report', '/internet'],
     ])
   ))
@@ -89,7 +89,7 @@ bot.command('report', (ctx) => {
   return ctx.replyWithHTML(message)
 })
 
-bot.hears(/\/start (.+)/, async (ctx) => {
+bot.hears(/\/track (.+)/, async (ctx) => {
   const {id} = ctx.update.message.from
   if (!state[id]) {
     generateState(id)
@@ -107,7 +107,7 @@ bot.hears(/\/start (.+)/, async (ctx) => {
     if (hash !== state[id].pageHash) {
       return ctx.reply(`🚨 Page ${url} has changed! 🚨`)
     }
-  }, 1000 * 60 * 5)
+  }, 1000 * 60)
   return ctx.reply(`Reporting started, reporting ${url} every 5 minutes`)  
 })
 
